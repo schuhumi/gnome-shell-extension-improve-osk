@@ -11,6 +11,13 @@ const Tweener = imports.ui.tweener;
 const Overview = imports.ui.overview;
 const Layout = imports.ui.layout;
 
+var defaultKeyboardDelay;
+var Backup_DefaultKeysForRow;
+var Backup_contructor;
+var Backup_keyvalPress;
+var Backup_keyvalRelease;
+
+
 function init() {
     defaultKeyboardDelay = Layout.KEYBOARD_ANIMATION_TIME;
     Backup_DefaultKeysForRow = Keyboard.Keyboard.prototype['_getDefaultKeysForRow'];
@@ -21,8 +28,22 @@ function init() {
 
 function enable() {
     Main.layoutManager.removeChrome(Main.layoutManager.keyboardBox);
-    Main.keyboard._destroyKeyboard();
+
+    var KeyboardIsSetup = true;
+    try {
+      Main.keyboard._destroyKeyboard();
+    } catch (e) {
+        if(e instanceof TypeError) {
+            // In case the keyboard is currently disabled in accessability settings, attempting to _destroyKeyboard() yields a TypeError ("TypeError: this.actor is null")
+            // This doesn't affect functionality, so proceed as usual. The only difference is that we do not automatically _setupKeyboard at the end of this enable() (let the user enable the keyboard in accessability settings)
+            KeyboardIsSetup = false;
+        } else {
+            // Something different happened
+            throw e;
+        }
+    }
     
+
     Keyboard.Keyboard.prototype['_getDefaultKeysForRow'] = function(row, numRows, level) {
         
         let defaultKeysPreMod = [
@@ -69,7 +90,6 @@ function enable() {
             return [null, null];
         }
     }
-    
     
     Keyboard.KeyboardController.prototype['constructor'] = function() {
         let deviceManager = Clutter.DeviceManager.get_default();
@@ -142,18 +162,36 @@ function enable() {
     }
 
     Layout.KEYBOARD_ANIMATION_TIME = 0;
-    Main.keyboard._setupKeyboard();
+    if(KeyboardIsSetup) {
+        Main.keyboard._setupKeyboard();
+    }
     Main.layoutManager.addChrome(   Main.layoutManager.keyboardBox, { affectsStruts: true, trackFullscreen: false });
 }
 
 function disable() {
     Main.layoutManager.removeChrome(Main.layoutManager.keyboardBox);
-    Main.keyboard._destroyKeyboard();
+    
+    var KeyboardIsSetup = true;
+    try {
+      Main.keyboard._destroyKeyboard();
+    } catch (e) {
+        if(e instanceof TypeError) {
+            // In case the keyboard is currently disabled in accessability settings, attempting to _destroyKeyboard() yields a TypeError ("TypeError: this.actor is null")
+            // This doesn't affect functionality, so proceed as usual. The only difference is that we do not automatically _setupKeyboard at the end of this enable() (let the user enable the keyboard in accessability settings)
+            KeyboardIsSetup = false;
+        } else {
+            // Something different happened
+            throw e;
+        }
+    }
+    
     Keyboard.Keyboard.prototype['_getDefaultKeysForRow'] = Backup_DefaultKeysForRow;
     Keyboard.KeyboardController.prototype['constructor'] = Backup_contructor;
     Keyboard.KeyboardController.prototype['keyvalPress'] = Backup_keyvalPress;
     Keyboard.KeyboardController.prototype['keyvalRelease'] = Backup_keyvalRelease;
     Layout.KEYBOARD_ANIMATION_TIME = defaultKeyboardDelay;
-    Main.keyboard._setupKeyboard();
+    if(KeyboardIsSetup) {
+        Main.keyboard._setupKeyboard();
+    }
     Main.layoutManager.addChrome(   Main.layoutManager.keyboardBox);
 }
